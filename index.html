@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مقسم الكتب المدرسية الذكي</title>
+    <!-- استدعاء مكتبة التصميم Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- استدعاء مكتبة التعامل مع PDF -->
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- استدعاء مكتبة ضغط الملفات ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- خط تجوال -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background-color: #f3f4f6; }
+        .card { background: white; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <div class="max-w-2xl mx-auto">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">✂️ مقسم الكتب المدرسية</h1>
+            <p class="text-gray-600">قسّم كتب الـ PDF إلى وحدات ودروس بسهولة من هاتفك</p>
+        </header>
+
+        <!-- Step 1: Upload -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center ml-3 text-sm">1</span>
+                اختيار الكتاب
+            </h2>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:bg-gray-50 transition cursor-pointer relative">
+                <input type="file" id="pdfFile" accept="application/pdf" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" onchange="handleFileSelect()">
+                <div id="fileLabel">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                        <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                    <p class="mt-1 text-sm text-gray-600">اضغط لاختيار ملف PDF</p>
+                </div>
+                <div id="fileNameDisplay" class="hidden text-green-600 font-bold mt-2"></div>
+            </div>
+        </div>
+
+        <!-- Step 2: Offset -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center ml-3 text-sm">2</span>
+                ضبط الترقيم (Offset)
+            </h2>
+            <div class="flex items-center justify-between bg-yellow-50 p-4 rounded-lg">
+                <div>
+                    <p class="text-sm font-bold text-gray-700">فارق الصفحات:</p>
+                    <p class="text-xs text-gray-500">الفرق بين رقم الصفحة في الفهرس ورقمها الفعلي في ملف الـ PDF</p>
+                </div>
+                <input type="number" id="offset" value="0" class="w-20 p-2 border rounded text-center font-bold text-lg">
+            </div>
+        </div>
+
+        <!-- Step 3: Add Units -->
+        <div class="card p-6 mb-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="bg-blue-100 text-blue-600 w-8 h-8 rounded-full flex items-center justify-center ml-3 text-sm">3</span>
+                إضافة الوحدات / الدروس
+            </h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <input type="text" id="unitName" placeholder="اسم الوحدة (مثال: الوحدة الأولى)" class="p-3 border rounded w-full">
+                <div class="flex gap-2">
+                    <input type="number" id="startPage" placeholder="من" class="p-3 border rounded w-full">
+                    <input type="number" id="endPage" placeholder="إلى" class="p-3 border rounded w-full">
+                </div>
+            </div>
+            
+            <button onclick="addUnit()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition mb-4">
+                + إضافة للقائمة
+            </button>
+
+            <!-- List -->
+            <div class="bg-gray-50 rounded-lg p-2 min-h-[100px]">
+                <table class="w-full text-sm text-right">
+                    <thead class="text-gray-500 border-b">
+                        <tr>
+                            <th class="pb-2 pr-2">الاسم</th>
+                            <th class="pb-2 text-center">من</th>
+                            <th class="pb-2 text-center">إلى</th>
+                            <th class="pb-2 pl-2 text-left">حذف</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unitsList">
+                        <!-- Items will appear here -->
+                    </tbody>
+                </table>
+                <p id="emptyMsg" class="text-center text-gray-400 py-4">لم تقم بإضافة وحدات بعد</p>
+            </div>
+        </div>
+
+        <!-- Step 4: Process -->
+        <button id="processBtn" onclick="processPDF()" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg text-lg flex justify-center items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed">
+            <span>تحميل الملفات المقسمة (ZIP)</span>
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        </button>
+        <div id="status" class="text-center mt-4 text-gray-600 font-bold hidden"></div>
+
+    </div>
+
+    <script>
+        let units = [];
+        let pdfBytes = null;
+
+        async function handleFileSelect() {
+            const fileInput = document.getElementById('pdfFile');
+            const file = fileInput.files[0];
+            if (file) {
+                document.getElementById('fileNameDisplay').innerText = `تم اختيار: ${file.name}`;
+                document.getElementById('fileNameDisplay').classList.remove('hidden');
+                document.getElementById('fileLabel').classList.add('hidden');
+                
+                // Read file
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    pdfBytes = new Uint8Array(e.target.result);
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function addUnit() {
+            const name = document.getElementById('unitName').value;
+            const start = parseInt(document.getElementById('startPage').value);
+            const end = parseInt(document.getElementById('endPage').value);
+
+            if (!name || isNaN(start) || isNaN(end)) {
+                alert("يرجى ملء جميع الحقول بشكل صحيح");
+                return;
+            }
+            if (start > end) {
+                alert("صفحة البداية يجب أن تكون أصغر من النهاية");
+                return;
+            }
+
+            units.push({ name, start, end });
+            renderList();
+            
+            // Clear inputs
+            document.getElementById('unitName').value = '';
+            document.getElementById('startPage').value = '';
+            document.getElementById('endPage').value = '';
+        }
+
+        function removeUnit(index) {
+            units.splice(index, 1);
+            renderList();
+        }
+
+        function renderList() {
+            const list = document.getElementById('unitsList');
+            const emptyMsg = document.getElementById('emptyMsg');
+            list.innerHTML = '';
+
+            if (units.length === 0) {
+                emptyMsg.classList.remove('hidden');
+            } else {
+                emptyMsg.classList.add('hidden');
+                units.forEach((u, index) => {
+                    const row = `
+                        <tr class="border-b last:border-0 hover:bg-gray-100">
+                            <td class="py-3 pr-2 font-medium">${u.name}</td>
+                            <td class="py-3 text-center text-blue-600 font-bold">${u.start}</td>
+                            <td class="py-3 text-center text-blue-600 font-bold">${u.end}</td>
+                            <td class="py-3 pl-2 text-left">
+                                <button onclick="removeUnit(${index})" class="text-red-500 hover:text-red-700 font-bold px-2">✕</button>
+                            </td>
+                        </tr>
+                    `;
+                    list.innerHTML += row;
+                });
+            }
+        }
+
+        async function processPDF() {
+            if (!pdfBytes) {
+                alert("يرجى اختيار ملف PDF أولاً");
+                return;
+            }
+            if (units.length === 0) {
+                alert("يرجى إضافة وحدات للتقسيم");
+                return;
+            }
+
+            const btn = document.getElementById('processBtn');
+            const status = document.getElementById('status');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loader ml-2"></span> جاري المعالجة...';
+            status.classList.remove('hidden');
+            status.innerText = "جاري قراءة الملف الأصلي...";
+
+            try {
+                const { PDFDocument } = PDFLib;
+                const pdfDoc = await PDFDocument.load(pdfBytes);
+                const totalPages = pdfDoc.getPageCount();
+                const offset = parseInt(document.getElementById('offset').value) || 0;
+                
+                const zip = new JSZip();
+
+                for (let i = 0; i < units.length; i++) {
+                    const unit = units[i];
+                    status.innerText = `جاري معالجة: ${unit.name} (${i+1}/${units.length})`;
+                    
+                    // Create new PDF
+                    const newPdf = await PDFDocument.create();
+                    
+                    // Calculate indices (0-based)
+                    // Page 5 in book with offset 2 = page 7 in PDF -> index 6
+                    const startIdx = (unit.start + offset) - 1;
+                    const endIdx = (unit.end + offset); // Slice end is exclusive
+
+                    // Validate ranges
+                    const validStart = Math.max(0, startIdx);
+                    const validEnd = Math.min(totalPages, endIdx);
+
+                    if (validStart < validEnd) {
+                        const pageIndices = [];
+                        for(let k = validStart; k < validEnd; k++) pageIndices.push(k);
+                        
+                        const copiedPages = await newPdf.copyPages(pdfDoc, pageIndices);
+                        copiedPages.forEach((page) => newPdf.addPage(page));
+
+                        const pdfBytesOutput = await newPdf.save();
+                        
+                        // Sanitize filename
+                        const safeName = unit.name.replace(/[<>:"/\\|?*]/g, '_') + '.pdf';
+                        zip.file(safeName, pdfBytesOutput);
+                    }
+                }
+
+                status.innerText = "جاري ضغط الملفات...";
+                const zipContent = await zip.generateAsync({type:"blob"});
+                
+                // Download
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(zipContent);
+                link.download = "الكتب_المقسمة.zip";
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                status.innerText = "✅ تم التحميل بنجاح!";
+                
+            } catch (err) {
+                console.error(err);
+                alert("حدث خطأ أثناء المعالجة: " + err.message);
+                status.innerText = "❌ حدث خطأ";
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>تحميل الملفات المقسمة (ZIP)</span><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>';
+            }
+        }
+    </script>
+</body>
+          </html>
